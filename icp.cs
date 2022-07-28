@@ -417,16 +417,13 @@ namespace johns_icp
 
         //        let currentP = sessionOrigin.transform.position
         //        let currentR = sessionOrigin.transform.rotation
-
         //        before: points -> multiply by currentR -> add currentP
         //        after: points -> multiply by currentR -> add currentP -> multiply by R -> add t 
-
         //        after: points -> R * (currentR * points + currentP) + t
-
         //        sessionOrigin.transform.position = R * currentP + t
         //        sessionOrigin.transform.rotation = R * currentR */
             
-        //     /* actual code: */
+        //     /* actual Unity code: */
         //     var Q = new Quaternion(q[0], q[1], q[2], q[3]);
         //     var transform = sessionOrigin.transform;
         //     transform.position = Q * transform.position + t;
