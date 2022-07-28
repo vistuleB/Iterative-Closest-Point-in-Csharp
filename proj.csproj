@@ -6,6 +6,7 @@
 
     <ItemGroup>
         <Reference Include="System.Data"/>
+        <Reference Include="System.Numerics, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"/>
         <Reference Include="MathNet.Numerics, Version=4.8.1.0, Culture=neutral, processorArchitecture=MSIL"><HintPath>packages\MathNet.Numerics.4.8.1\lib\net461\MathNet.Numerics.dll</HintPath></Reference>
         <Reference Include="Supercluster.KDTree, Version=1.0.4.0, Culture=neutral, PublicKeyToken=4423da5f8ba350cf, processorArchitecture=MSIL"><HintPath>packages\Supercluster.KDTree.1.0.4\lib\Supercluster.KDTree.dll</HintPath></Reference>
         <Compile Include="icp.cs"/>

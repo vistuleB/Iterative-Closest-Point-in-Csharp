@@ -202,6 +202,8 @@ namespace johns_icp
             }
             Vector<double> t = Y_centroid - R * P_centroid;
             double err = SumOfColumnNorms(Y_centered - R * P_centered);
+            // note: the above is equal to: SumOfColumnNorms(Y - (R * P_points + t))
+            // ...where the "+ t" at the end must be computed using AddVectorToColumns
             return new Tuple<Matrix<double>, Vector<double>, double>(R, t, err);
         }
 
@@ -342,6 +344,95 @@ namespace johns_icp
             return RotationMatrixFromQuaternion(q);
         }
 
+        static Vector<double>
+            CrossProduct(Vector<double> u, Vector<double> v)
+        {
+            return vectorBuilder.DenseOfArray(
+                new double[] {
+                      u[1] * v[2] - u[2] * v[1],
+                    -(u[0] * v[2] - u[2] * v[0]),
+                      u[0] * v[1] - u[1] * v[0],
+                }
+            );
+        }
+
+        static Vector<double>
+            FindVectorOrthogonalTo(Vector<double> u)
+        {
+            // assumes a three-dimensional vector u
+            Vector<double> e1 = vectorBuilder.DenseOfArray(new double[] { 1, 0, 0 });
+            Vector<double> e2 = vectorBuilder.DenseOfArray(new double[] { 0, 1, 0 });
+            Vector<double> e3 = vectorBuilder.DenseOfArray(new double[] { 0, 0, 1 });
+            Vector<double> candidate1 = CrossProduct(u, e1);
+            Vector<double> candidate2 = CrossProduct(u, e2);
+            Vector<double> candidate3 = CrossProduct(u, e3);
+            double length1 = candidate1.Norm(2);
+            double length2 = candidate2.Norm(2);
+            double length3 = candidate3.Norm(2);
+            return (length1 > Math.Max(length2, length3)) ? candidate1 : ((length2 > length3) ? candidate2 : candidate3);
+        }
+
+        static Vector<double>
+            QuaternionFromRotationMatrix(Matrix<double> R, bool constrain_rotations_to_Y_axis=false)
+        {
+            // see https://math.stackexchange.com/questions/893984/conversion-of-rotation-matrix-to-quaternion
+            // including comment about the sign of theta
+            Vector<double> u = R.Evd().EigenVectors.Column(2);
+            if (constrain_rotations_to_Y_axis) {
+                if (u[2] < 1E-15) { u[2] = 0; }
+                if (u[0] < 1E-15) { u[0] = 0; }
+            }
+            Vector<double> uperp = FindVectorOrthogonalTo(u);
+            Vector<double> uperpperp = CrossProduct(u, uperp);
+            int sign = 1;
+            if ((R * uperp).DotProduct(uperpperp) < 0)
+            {
+                sign = -1;
+            }
+            double cosOfTheta = (R.Trace() - 1) / 2;
+            double sinOfHalfTheta = sign * Math.Sqrt((1 - cosOfTheta) / 2);
+            double cosOfHalfTheta = Math.Sqrt((1 + cosOfTheta) / 2);
+            Vector<double> e = vectorBuilder.DenseOfArray(new double[] { 1, 0, 0, 0 });
+            Vector<double> w = vectorBuilder.Dense(4);
+            w.SetSubVector(1, 3, u);
+            return e * cosOfHalfTheta + w * sinOfHalfTheta;
+        }
+
+        static double
+            MagnitudeOfRotationFromQuaternionInRadians(Vector<double> q)
+        {
+            return 2 * Math.Acos(q[0]);
+        }
+
+        static double
+            MagnitudeOfRotationFromQuaternionInDegrees(Vector<double> q)
+        {
+            return (180 / 3.141593) * MagnitudeOfRotationFromQuaternionInRadians(q);
+        }
+
+        // static void 
+        //     IncorporateNewPositionRotationIntoARSessionOrigin(Vector<double> t, Vector<double> q)
+        // {
+        //     /* notes to self:
+
+        //        let currentP = sessionOrigin.transform.position
+        //        let currentR = sessionOrigin.transform.rotation
+
+        //        before: points -> multiply by currentR -> add currentP
+        //        after: points -> multiply by currentR -> add currentP -> multiply by R -> add t 
+
+        //        after: points -> R * (currentR * points + currentP) + t
+
+        //        sessionOrigin.transform.position = R * currentP + t
+        //        sessionOrigin.transform.rotation = R * currentR */
+            
+        //     /* actual code: */
+        //     var Q = new Quaternion(q[0], q[1], q[2], q[3]);
+        //     var transform = sessionOrigin.transform;
+        //     transform.position = Q * transform.position + t;
+        //     transform.rotation = Q * transform.rotation;
+        // }
+
         static void Main(string[] args)
         {
             Matrix<double> M_points = RandomMatrixInInterval(3, 20, -10, 10);
@@ -357,7 +448,7 @@ namespace johns_icp
                 15,     // max_iterations
                 0.01,   // error_per_point_threshold
                 0.99,   // lack_of_progress_threshold
-                true   // constrain_rotations_to_Y_axis
+                true    // constrain_rotations_to_Y_axis
             );
 
             System.Console.WriteLine("\nrotation:");
@@ -371,6 +462,13 @@ namespace johns_icp
 
             System.Console.WriteLine("\nnum iterations:");
             System.Console.WriteLine(results.Item4);
+
+            System.Console.WriteLine("\nR converted to quaternion:");
+            var q = QuaternionFromRotationMatrix(results.Item1);
+            System.Console.WriteLine(q);
+
+            System.Console.WriteLine("\nmagnitude of rotation in degrees:");
+            System.Console.WriteLine(MagnitudeOfRotationFromQuaternionInDegrees(q));
         }
     }
 }
