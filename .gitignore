@@ -2,4 +2,4 @@
 *.cache
 bin
 obj
-icp.code-workspace
+this.code-workspace
